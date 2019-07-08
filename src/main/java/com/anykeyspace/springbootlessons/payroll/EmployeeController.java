@@ -20,9 +20,11 @@ import static org.springframework.hateoas.mvc.ControllerLinkBuilder.methodOn;
 class EmployeeController {
 
     private final EmployeeRepository repository;
+    private final EmployeeResourceAssembler resourceAssembler;
 
-    EmployeeController(EmployeeRepository repository) {
+    EmployeeController(EmployeeRepository repository, EmployeeResourceAssembler resourceAssembler) {
         this.repository = repository;
+        this.resourceAssembler = resourceAssembler;
     }
 
     // Aggregate root
@@ -31,9 +33,7 @@ class EmployeeController {
     Resources<Resource<Employee>> all() {
 
         List<Resource<Employee>> employees = repository.findAll().stream()
-                .map(employee -> new Resource<>(employee,
-                        linkTo(methodOn(EmployeeController.class).one(employee.getId())).withSelfRel(),
-                        linkTo(methodOn(EmployeeController.class).all()).withRel("employees")))
+                .map(resourceAssembler::toResource)
                 .collect(Collectors.toList());
 
         return new Resources<>(employees,
@@ -41,7 +41,8 @@ class EmployeeController {
     }
 
     @PostMapping("/employees")
-    Employee newEmployee(@RequestBody Employee newEmployee) {
+    Employee newEmployee(@RequestBody Employee newEmployee)
+    {
         return repository.save(newEmployee);
     }
 
@@ -53,9 +54,7 @@ class EmployeeController {
         Employee employee = repository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException(id));
 
-        return new Resource<>(employee,
-                linkTo(methodOn(EmployeeController.class).one(id)).withSelfRel(),
-                linkTo(methodOn(EmployeeController.class).all()).withRel("employees"));
+        return resourceAssembler.toResource(employee);
     }
 
     @PutMapping("/employees/{id}")
